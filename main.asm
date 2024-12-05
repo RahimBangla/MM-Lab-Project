@@ -14,7 +14,10 @@ INCLUDE 'EMU8086.INC'
     newline db 13, 10, '$', 0
     am_pm db ' AM$', 0
     is_24_hour db 1  ; 1 for 24-hour, 0 for 12-hour
-
+    
+    input_buffer db 7  ; Buffer size
+                db ?   ; Actual chars read
+                db 7 dup(?) ; Buffer for HHMMSS
     hours db 0, 0  ; Hours
     minutes db 0, 0  ; Minutes
     seconds db 0, 0  ; Seconds
@@ -165,12 +168,41 @@ set_time proc
     mov ah, 9
     int 21h
 
-    ; Read HHMMSS
+    ; Read HHMMSS into buffer
     mov ah, 0Ah
-    lea dx, hours
+    lea dx, input_buffer
     int 21h
 
-    ; Validation skipped for simplicity
+    ; Convert and store hours
+    mov al, input_buffer[2]  ; First hour digit
+    sub al, '0'
+    mov bl, 10
+    mul bl
+    mov bl, input_buffer[3]  ; Second hour digit
+    sub bl, '0'
+    add al, bl
+    mov hours[0], al
+
+    ; Convert and store minutes
+    mov al, input_buffer[4]  ; First minute digit
+    sub al, '0'
+    mov bl, 10
+    mul bl
+    mov bl, input_buffer[5]  ; Second minute digit
+    sub bl, '0'
+    add al, bl
+    mov minutes[0], al
+
+    ; Convert and store seconds
+    mov al, input_buffer[6]  ; First second digit
+    sub al, '0'
+    mov bl, 10
+    mul bl
+    mov bl, input_buffer[7]  ; Second second digit
+    sub bl, '0'
+    add al, bl
+    mov seconds[0], al
+
     ret
 set_time endp
 
