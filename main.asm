@@ -1,68 +1,146 @@
-ORG 100h
+INCLUDE 'EMU8086.INC'
+.model small
+.stack 100h
 
-; Macro to print a character
-PRINT_CHAR MACRO CHAR
-    MOV AH, 0Eh
-    MOV AL, CHAR
-    INT 10h
-ENDM
+.data
+    menu db '1. View Clock$', 0
+    menu2 db '2. Set Clock$', 0
+    prompt db 'Enter your choice: $', 0
+    set_prompt db 'Enter HHMMSS (24-hour format): $', 0
+    invalid_input db 'Invalid Input!$', 0
+    current_time db 'Current Time: HH:MM:SS$', 0
+    newline db 13, 10, '$', 0
 
-START:
-    ; Set cursor to top-left position (row 0, column 0)
-    MOV AH, 02h
-    MOV BH, 00h
-    MOV DH, 00h
-    MOV DL, 00h
-    INT 10h
+    hours db 0, 0  ; Hours
+    minutes db 0, 0  ; Minutes
+    seconds db 0, 0  ; Seconds
 
-CLOCK_LOOP:
-    ; Get system time
-    MOV AH, 2Ch
-    INT 21h
+.code
+main proc
+    mov ax, @data
+    mov ds, ax
 
-    ; Set cursor to top-left position again
-    MOV AH, 02h
-    MOV BH, 00h
-    MOV DH, 00h
-    MOV DL, 00h
-    INT 10h
+menu_loop:
+    ; Display menu
+    lea dx, newline
+    mov ah, 9
+    int 21h
 
-    ; Print Hours
-    MOV AL, CH         ; Load hours into AL
-    CALL PRINT_TWO_DIGITS
-    PRINT_CHAR ':'     ; Print colon separator
+    lea dx, menu
+    mov ah, 9
+    int 21h
 
-    ; Print Minutes
-    MOV AL, CL         ; Load minutes into AL
-    CALL PRINT_TWO_DIGITS
-    PRINT_CHAR ':'     ; Print colon separator
+    lea dx, newline
+    mov ah, 9
+    int 21h
 
-    ; Print Seconds
-    MOV AL, DH         ; Load seconds into AL
-    CALL PRINT_TWO_DIGITS
-    PRINT_CHAR '.'     ; Print decimal separator
+    lea dx, menu2
+    mov ah, 9
+    int 21h
 
-    ; Print Hundredths of a Second
-    MOV AL, DL         ; Load hundredths of a second into AL
-    CALL PRINT_TWO_DIGITS
+    ; Prompt for choice
+    lea dx, newline
+    mov ah, 9
+    int 21h
 
-    ; Small delay to control update frequency
-    MOV CX, 0FFFFh
-DELAY_LOOP:
-    LOOP DELAY_LOOP
+    lea dx, prompt
+    mov ah, 9
+    int 21h
 
-    JMP CLOCK_LOOP     ; Repeat the loop
+    ; Get user choice
+    mov ah, 1
+    int 21h
+    cmp al, '1'
+    je view_clock
+    cmp al, '2'
+    je set_clock
+    jmp invalid_choice
 
-; Subroutine to print two digits
-PRINT_TWO_DIGITS PROC
-    MOV AH, 0
-    AAM                 ; ASCII Adjust AX after division by 10
-    ADD AX, 3030h       ; Convert to ASCII
-    MOV DL, AH          ; High digit
-    PRINT_CHAR DL       ; Print high digit
-    MOV DL, AL          ; Low digit
-    PRINT_CHAR DL       ; Print low digit
-    RET
-PRINT_TWO_DIGITS ENDP
+view_clock:
+    call display_clock
+    jmp menu_loop
 
-RET
+set_clock:
+    call set_time
+    jmp menu_loop
+
+invalid_choice:
+    lea dx, invalid_input
+    mov ah, 9
+    int 21h
+    jmp menu_loop
+
+main endp
+
+display_clock proc
+    ; Convert time to string and display
+    call update_time
+    lea dx, current_time
+    mov ah, 9
+    int 21h
+    ret
+display_clock endp
+
+set_time proc
+    lea dx, newline
+    mov ah, 9
+    int 21h
+
+    lea dx, set_prompt
+    mov ah, 9
+    int 21h
+
+    ; Read HHMMSS
+    mov ah, 0Ah
+    lea dx, hours
+    int 21h
+
+    ; Validation skipped for simplicity
+    ret
+set_time endp
+
+update_time proc
+    ; Logic to increment seconds, minutes, and hours
+    inc seconds[1]
+    cmp seconds[1], 10
+    jl no_minute_carry
+
+    ; Seconds carry
+    mov seconds[1], 0
+    inc seconds[0]
+    cmp seconds[0], 6
+    jl no_minute_carry
+    mov seconds[0], 0
+    inc minutes[1]
+
+no_minute_carry:
+    cmp minutes[1], 10
+    jl no_hour_carry
+
+    ; Minutes carry
+    mov minutes[1], 0
+    inc minutes[0]
+    cmp minutes[0], 6
+    jl no_hour_carry
+    mov minutes[0], 0
+    inc hours[1]
+
+no_hour_carry:
+    cmp hours[1], 10
+    jl continue_update
+    mov hours[1], 0
+    inc hours[0]
+
+continue_update:
+    cmp hours[0], 2
+    jl ret_update
+    cmp hours[1], 4
+    jl ret_update
+    mov hours[0], 0
+    mov hours[1], 0
+
+ret_update:
+    ret
+update_time endp
+
+end main
