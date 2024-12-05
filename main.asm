@@ -5,12 +5,15 @@ INCLUDE 'EMU8086.INC'
 .data
     menu db '1. View Clock$', 0
     menu2 db '2. Set Clock$', 0
+    menu3 db '3. Toggle 12/24 Hour Format$', 0
     prompt db 'Enter your choice: $', 0
     set_prompt db 'Enter HHMMSS (24-hour format): $', 0
     invalid_input db 'Invalid Input!$', 0
     current_time db 'Current Time: $', 0
     time_str db '00:00:00$', 0
     newline db 13, 10, '$', 0
+    am_pm db ' AM$', 0
+    is_24_hour db 1  ; 1 for 24-hour, 0 for 12-hour
 
     hours db 0, 0  ; Hours
     minutes db 0, 0  ; Minutes
@@ -39,6 +42,14 @@ menu_loop:
     mov ah, 9
     int 21h
 
+    lea dx, newline
+    mov ah, 9
+    int 21h
+
+    lea dx, menu3
+    mov ah, 9
+    int 21h
+
     ; Prompt for choice
     lea dx, newline
     mov ah, 9
@@ -55,6 +66,8 @@ menu_loop:
     je view_clock
     cmp al, '2'
     je set_clock
+    cmp al, '3'
+    je toggle_format
     jmp invalid_choice
 
 view_clock:
@@ -63,6 +76,10 @@ view_clock:
 
 set_clock:
     call set_time
+    jmp menu_loop
+
+toggle_format:
+    not is_24_hour  ; Toggle between 0 and 1
     jmp menu_loop
 
 invalid_choice:
@@ -80,6 +97,25 @@ display_clock proc
     
     ; Convert hours
     mov al, ch
+    cmp is_24_hour, 1
+    je convert_hours
+    
+    ; Convert to 12-hour format
+    cmp al, 12
+    jl am_time
+    mov am_pm[1], 'P'  ; Set PM
+    cmp al, 12
+    je convert_hours
+    sub al, 12
+    jmp am_time
+    
+am_time:
+    mov am_pm[1], 'A'  ; Set AM
+    cmp al, 0
+    jne convert_hours
+    mov al, 12
+
+convert_hours:    
     aam
     add ax, 3030h
     mov time_str[0], ah
@@ -109,6 +145,14 @@ display_clock proc
     mov ah, 9
     int 21h
     
+    ; Display AM/PM if in 12-hour mode
+    cmp is_24_hour, 0
+    jne skip_ampm
+    lea dx, am_pm
+    mov ah, 9
+    int 21h
+    
+skip_ampm:
     ret
 display_clock endp
 
