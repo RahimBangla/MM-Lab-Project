@@ -21,6 +21,7 @@ INCLUDE 'EMU8086.INC'
     hours db 0, 0  ; Hours
     minutes db 0, 0  ; Minutes
     seconds db 0, 0  ; Seconds
+    old_seconds db 0 ; Store previous seconds value
 
 .code
 main proc
@@ -74,7 +75,45 @@ menu_loop:
     jmp invalid_choice
 
 view_clock:
+    ; Clear screen
+    mov ax, 3
+    int 10h
+    
+    ; Get initial seconds
+    mov ah, 2Ch
+    int 21h
+    mov old_seconds, dh
+    
+view_clock_loop:
+    ; Move cursor to top
+    mov ah, 2
+    mov bh, 0
+    mov dh, 0
+    mov dl, 0
+    int 10h
+    
+    ; Get current time
+    mov ah, 2Ch
+    int 21h
+    
+    ; Compare with old seconds
+    cmp dh, old_seconds
+    je check_key  ; If same second, don't update display
+    
+    mov old_seconds, dh  ; Store new seconds
     call display_clock
+    
+check_key:
+    ; Check for ESC key
+    mov ah, 1
+    int 16h
+    jz view_clock_loop
+    
+    mov ah, 0
+    int 16h
+    cmp al, 27  ; ESC key
+    jne view_clock_loop
+    
     jmp menu_loop
 
 set_clock:
