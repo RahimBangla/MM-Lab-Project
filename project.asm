@@ -14,10 +14,14 @@ INCLUDE 'EMU8086.INC'
     newline db 13, 10, '$', 0
     am_pm db ' AM$', 0
     is_24_hour db 1
-
+    
+    input_buffer db 7
+                db ?
+                db 7 dup(?)
     hours db 0, 0
     minutes db 0, 0
     seconds db 0, 0
+    old_seconds db 0
 
 .code
 main proc
@@ -68,7 +72,39 @@ menu_loop:
     jmp invalid_choice
 
 view_clock:
+    mov ax, 3
+    int 10h
+    
+    mov ah, 2Ch
+    int 21h
+    mov old_seconds, dh
+    
+view_clock_loop:
+    mov ah, 2
+    mov bh, 0
+    mov dh, 0
+    mov dl, 0
+    int 10h
+    
+    mov ah, 2Ch
+    int 21h
+    
+    cmp dh, old_seconds
+    je check_key
+    
+    mov old_seconds, dh
     call display_clock
+    
+check_key:
+    mov ah, 1
+    int 16h
+    jz view_clock_loop
+    
+    mov ah, 0
+    int 16h
+    cmp al, 27
+    jne view_clock_loop
+    
     jmp menu_loop
 
 set_clock:
@@ -155,8 +191,35 @@ set_time proc
     int 21h
 
     mov ah, 0Ah
-    lea dx, hours
+    lea dx, input_buffer
     int 21h
+
+    mov al, input_buffer[2]
+    sub al, '0'
+    mov bl, 10
+    mul bl
+    mov bl, input_buffer[3]
+    sub bl, '0'
+    add al, bl
+    mov hours[0], al
+
+    mov al, input_buffer[4]
+    sub al, '0'
+    mov bl, 10
+    mul bl
+    mov bl, input_buffer[5]
+    sub bl, '0'
+    add al, bl
+    mov minutes[0], al
+
+    mov al, input_buffer[6]
+    sub al, '0'
+    mov bl, 10
+    mul bl
+    mov bl, input_buffer[7]
+    sub bl, '0'
+    add al, bl
+    mov seconds[0], al
 
     ret
 set_time endp
