@@ -8,7 +8,8 @@ INCLUDE 'EMU8086.INC'
     prompt db 'Enter your choice: $', 0
     set_prompt db 'Enter HHMMSS (24-hour format): $', 0
     invalid_input db 'Invalid Input!$', 0
-    current_time db 'Current Time: HH:MM:SS$', 0
+    current_time db 'Current Time: $', 0
+    time_str db '00:00:00$', 0
     newline db 13, 10, '$', 0
 
     hours db 0, 0  ; Hours
@@ -73,11 +74,41 @@ invalid_choice:
 main endp
 
 display_clock proc
-    ; Convert time to string and display
-    call update_time
+    ; Get system time
+    mov ah, 2Ch
+    int 21h    ; CH=hour(0-23), CL=minute(0-59), DH=second(0-59)
+    
+    ; Convert hours
+    mov al, ch
+    aam
+    add ax, 3030h
+    mov time_str[0], ah
+    mov time_str[1], al
+    
+    ; Convert minutes
+    mov al, cl
+    aam
+    add ax, 3030h
+    mov time_str[3], ah
+    mov time_str[4], al
+    
+    ; Convert seconds  
+    mov al, dh
+    aam
+    add ax, 3030h
+    mov time_str[6], ah
+    mov time_str[7], al
+
+    ; Display current time label
     lea dx, current_time
     mov ah, 9
     int 21h
+    
+    ; Display time
+    lea dx, time_str
+    mov ah, 9
+    int 21h
+    
     ret
 display_clock endp
 
